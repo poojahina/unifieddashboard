@@ -1,6 +1,6 @@
 <div class="app-shell" [class.collapsed]="collapsed()">
 <aside class="sidebar">
- <a class="brand" routerLink="/dashboard" aria-label="Unified AI home"><span class="brand-mark"><svg viewBox="0 0 32 32" fill="none"><path d="M7 7v11a9 9 0 0018 0V7M12 7v11a4 4 0 008 0V7" stroke="currentColor" stroke-width="2.3"/></svg></span><span class="brand-type">unified<span>AI</span><small>CONSUMPTION & GOVERNANCE</small></span></a>
+ <a class="brand" routerLink="/dashboard" aria-label="Unified AI home"><span class="brand-mark"><img src="/logo.png" alt="" aria-hidden="true"></span><span class="brand-type">unified<span>AI</span><small>CONSUMPTION & GOVERNANCE</small></span></a>
  <div class="workspace-picker"><span class="workspace-avatar">A</span><div>Acme workspace<small>Enterprise plan</small></div><ui-icon name="down"/></div>
  <div class="nav-label">WORKSPACE</div>
  <nav aria-label="Main navigation">@for(link of links;track link.path){@if(link.path==='reports'){<div class="nav-divider"></div><div class="nav-label">GOVERNANCE</div>}<a [routerLink]="'/'+link.path" routerLinkActive="active" [title]="link.label" [attr.aria-label]="link.label"><ui-icon [name]="link.icon"/><span>{{link.label}}</span>@if(link.path==='alerts'){<b class="nav-count">2</b>}</a>}</nav>
