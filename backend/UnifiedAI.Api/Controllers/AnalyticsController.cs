@@ -9,6 +9,7 @@ public sealed class AnalyticsController(IDashboardDataService data) : Controller
 {
     [HttpGet("metadata")] public object Metadata()=>data.Metadata();
     [HttpGet("dashboard/summary")] public DashboardSummary Summary([FromQuery]UsageFilter filter)=>data.Summary(filter);
+    [HttpGet("dashboard/providers")] public IReadOnlyList<ProviderSummary> DashboardProviders([FromQuery]UsageFilter filter)=>data.ProviderSummary(filter);
     [HttpGet("dashboard/provider-summary")] public IReadOnlyList<ProviderSummary> Providers([FromQuery]UsageFilter filter)=>data.ProviderSummary(filter);
     [HttpGet("dashboard/top-consumers")] public TopConsumers Consumers([FromQuery]UsageFilter filter)=>data.TopConsumers(filter);
     [HttpGet("usage")] public PageResult<UsageRecord> Usage([FromQuery]UsageFilter filter)=>data.Usage(filter);

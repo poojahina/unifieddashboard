@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using UnifiedAI.Api.Models;
 using UnifiedAI.Api.Services;
@@ -74,6 +75,39 @@ public class IntegrationTests
         Assert.Equal(HttpStatusCode.OK,(await client.PostAsJsonAsync($"/api/integrations/{integration.Id}/sync",new{})).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent,(await client.DeleteAsync($"/api/integrations/{integration.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync($"/api/integrations/{integration.Id}")).StatusCode);
+    }
+    [Theory]
+    [InlineData("Claude",430250,8450000,3250000,11700000)]
+    [InlineData("OpenAI",385800,6750000,2650000,9400000)]
+    [InlineData("Copilot",248600,4150000,1860000,6010000)]
+    [InlineData("ServiceNow",142900,2190000,960000,3150000)]
+    public async Task DemoProviderNormalizationUsesCommonMetric(string provider,long requests,long input,long output,long total)
+    {
+        await using var factory=new WebApplicationFactory<Program>().WithWebHostBuilder(b=>b.UseEnvironment("Development"));
+        var client=factory.CreateClient();
+        var response=await client.PostAsJsonAsync($"/api/demo/provider/{provider}/normalize",new{});
+        Assert.Equal(HttpStatusCode.OK,response.StatusCode);
+        var body=await response.Content.ReadFromJsonAsync<DemoNormalizeResponse>();
+        Assert.NotNull(body);
+        var metric=Assert.Single(body.Normalized);
+        Assert.Equal(provider,metric.Provider);
+        Assert.Equal(requests,metric.RequestCount);
+        Assert.Equal(input,metric.InputTokens);
+        Assert.Equal(output,metric.OutputTokens);
+        Assert.Equal(total,metric.TotalTokens);
+    }
+    [Fact] public async Task DemoNormalizeSanitizesSecretsBeforeNormalization()
+    {
+        await using var factory=new WebApplicationFactory<Program>().WithWebHostBuilder(b=>b.UseEnvironment("Development"));
+        var client=factory.CreateClient();
+        var request=new DemoNormalizeRequest("UnknownProvider","{\"account\":\"custom-prod\",\"apiKey\":\"secret\",\"usageStats\":{\"totalRequests\":100,\"promptTokens\":5000,\"completionTokens\":2000,\"successful\":96,\"failed\":4}}");
+        var response=await client.PostAsJsonAsync("/api/demo/normalize",request);
+        Assert.Equal(HttpStatusCode.OK,response.StatusCode);
+        var body=await response.Content.ReadFromJsonAsync<DemoNormalizeResponse>();
+        Assert.NotNull(body);
+        var metric=Assert.Single(body.Normalized);
+        Assert.Equal(7000,metric.TotalTokens);
+        Assert.Equal("custom-prod",metric.AccountName);
     }
 }
 

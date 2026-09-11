@@ -2,11 +2,11 @@
 
 A working Angular + ASP.NET Core enterprise POC for Claude, OpenAI, Microsoft Copilot, ServiceNow, and runtime custom REST configurations.
 
-**No database. No persistence. No data generator. No external provider calls.** All consumption observations are explicit C# fixtures. Runtime integration changes and credentials exist only in API process memory.
+**No database. No persistence. No data generator.** The current demo providers return explicit raw JSON fixtures, which pass through a sanitizer, LLM normalizer abstraction, .NET validation/calculation, and then the dashboard APIs.
 
 ## Run locally
 
-Prerequisites: **.NET 10 SDK**, **Node.js 24.15+**, npm. Angular 22 and Angular Material 22 are locked in `frontend/package-lock.json`.
+Prerequisites: **.NET 8 SDK**, **Node.js 24.15+**, npm. Angular 22 and Angular Material 22 are locked in `frontend/package-lock.json`.
 
 From the repository root, open two terminals:
 
@@ -38,6 +38,27 @@ $env:PATH="$PWD\.tools\node-v24.21.0-win-x64;$env:PATH"
 
 No setup data, provider credentials, database connection strings, or migrations are needed.
 
+## Normalization POC flow
+
+```text
+Provider connector
+  -> Raw provider JSON
+  -> JsonSanitizer
+  -> LlmUsageNormalizer
+  -> UnifiedUsageMetric
+  -> UsageValidator
+  -> Dashboard API
+```
+
+The connectors intentionally return different shapes:
+
+- Claude: `usage.input_tokens`
+- OpenAI: `metrics.prompt_token_count`
+- Copilot: `consumption.tokens.in`
+- ServiceNow: `ai_usage.input`
+
+All four use the same `IUsageNormalizer` and produce the same `UnifiedUsageMetric` structure. The default `DemoLlmClient` is deterministic so the POC builds and tests without an external LLM key; the `ILlmClient` abstraction is the single place to replace it with a real structured-output LLM call.
+
 ## What is implemented
 
 - Enterprise navigation and workspace shell, collapsible sidebar, light/dark mode, responsive charts and scrolling tables.
@@ -50,7 +71,7 @@ No setup data, provider credentials, database connection strings, or migrations 
 - Metadata-driven Angular Reactive Forms and Material stepper: choose provider → connection details → simulated test → review/add → initial sync.
 - Integration view, edit, test, sync, enable/disable and delete.
 - Safe error responses, correlation IDs, rate limiting, CORS, loading/empty/error UI states.
-- Swagger/OpenAPI; backend, Angular, and headless browser tests.
+- Swagger/OpenAPI, including development-only normalization demo endpoints; backend, Angular, and headless browser tests.
 
 ## Architecture
 
@@ -58,8 +79,16 @@ No setup data, provider credentials, database connection strings, or migrations 
 flowchart TD
   UI[Angular lazy-loaded features] --> Services[Typed Angular API services]
   Services --> API[ASP.NET Core controllers / stable REST contracts]
-  API --> Dashboard[IDashboardDataService]
-  Dashboard --> Fixed[HardCodedDashboardDataService / explicit C# fixtures]
+  API --> Dashboard[Dashboard API]
+  API --> Demo[Demo normalize endpoint]
+  Demo --> Service[IntegrationService]
+  Service --> Resolver[ConnectorResolver]
+  Resolver --> Connectors[Provider connectors / raw JSON]
+  Connectors --> Sanitizer[JsonSanitizer]
+  Sanitizer --> Normalizer[LlmUsageNormalizer]
+  Normalizer --> Validator[UsageValidator]
+  Validator --> Unified[UnifiedUsageMetric]
+  Dashboard --> Fixed[Dashboard aggregations]
   API --> Catalog[Provider catalog / configuration schemas]
   API --> Runtime[RuntimeIntegrationService / server memory]
   Runtime --> Tester[DemoConnectionTester / no outbound requests]
@@ -74,8 +103,8 @@ backend/
     Controllers/        Thin HTTP endpoints
     Models/             Normalized DTOs and validation errors
     Data/               Explicit immutable demo observations
-    Services/           Aggregation, schemas, runtime integration state
-    Connectors/         Future provider connector contracts
+    Services/           Aggregation, schemas, runtime state, normalization
+    Connectors/         Provider connectors and Generic REST connector
   UnifiedAI.Tests/      Unit and in-process API tests
 frontend/
   src/app/
@@ -166,7 +195,7 @@ Custom REST fields are validated and retained for demonstration only. This relea
 | Area | Endpoints |
 |---|---|
 | Metadata | `GET /api/metadata` |
-| Dashboard | `GET /api/dashboard/summary`, `provider-summary`, `top-consumers` |
+| Dashboard | `GET /api/dashboard/summary`, `providers`, `provider-summary`, `top-consumers` |
 | Usage | `GET /api/usage`, `/api/usage/trends`, `token-trends`, `request-status` |
 | Costs | `GET /api/costs/summary`, `/api/costs/trends` |
 | Providers | `GET /api/providers`, `/{providerType}`, `/{providerType}/configuration-schema` |
@@ -176,6 +205,7 @@ Custom REST fields are validated and retained for demonstration only. This relea
 | Enable/disable | `PATCH /api/integrations/{id}/enabled` with `{"enabled":false}` |
 | Governance | `GET /api/audit-logs`, `GET /api/alerts` |
 | Health | `GET /api/health` |
+| Demo normalization | `POST /api/demo/normalize`, `POST /api/demo/provider/{providerType}/normalize` in Development |
 | OpenAPI | `GET /swagger/v1/swagger.json` |
 
 Analytics filters: `from`, `to`, `provider`, `account` (account ID), `environment`, `team`, `model`.

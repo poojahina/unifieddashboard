@@ -1,17 +1,33 @@
 ﻿using System.Diagnostics;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using UnifiedAI.Api.Connectors;
 using UnifiedAI.Api.Models;
 using UnifiedAI.Api.Services;
 
 var builder=WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(o=>o.SwaggerDoc("v1",new(){Title="Unified AI Consumption Dashboard",Version="v1",Description="POC: fixed C# fixtures, simulated connections, memory-only runtime integrations. No database or external provider calls."}));
+builder.Services.AddSwaggerGen(o=>o.SwaggerDoc("v1",new(){Title="Unified AI Consumption Dashboard",Version="v1",Description="POC: provider connectors return raw JSON, the normalizer produces UnifiedUsageMetric, and dashboard APIs expose the common model. No database or persistence."}));
 builder.Services.AddSingleton<IProviderCatalog,ProviderCatalog>();
 builder.Services.AddSingleton<IDashboardDataService,HardCodedDashboardDataService>();
 builder.Services.AddSingleton<DemoConnectionTester>();
 builder.Services.AddSingleton<RuntimeIntegrationService>();
+builder.Services.AddSingleton<ClaudeConnector>();
+builder.Services.AddSingleton<OpenAIConnector>();
+builder.Services.AddSingleton<CopilotConnector>();
+builder.Services.AddSingleton<ServiceNowConnector>();
+builder.Services.AddSingleton<GenericRestConnector>();
+builder.Services.AddSingleton<IProviderConnector>(sp=>sp.GetRequiredService<ClaudeConnector>());
+builder.Services.AddSingleton<IProviderConnector>(sp=>sp.GetRequiredService<OpenAIConnector>());
+builder.Services.AddSingleton<IProviderConnector>(sp=>sp.GetRequiredService<CopilotConnector>());
+builder.Services.AddSingleton<IProviderConnector>(sp=>sp.GetRequiredService<ServiceNowConnector>());
+builder.Services.AddSingleton<ConnectorResolver>();
+builder.Services.AddSingleton<JsonSanitizer>();
+builder.Services.AddSingleton<ILlmClient,DemoLlmClient>();
+builder.Services.AddSingleton<IUsageNormalizer,LlmUsageNormalizer>();
+builder.Services.AddSingleton<UsageValidator>();
+builder.Services.AddSingleton<IntegrationService>();
 builder.Services.AddHttpClient();
 builder.Services.AddCors(o=>o.AddDefaultPolicy(p=>p.WithOrigins(builder.Configuration["FrontendOrigin"]??"http://localhost:4200").AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddRateLimiter(o=>{

@@ -42,3 +42,36 @@ public sealed record AlertView(string Id,string Severity,string Title,string Des
 public sealed class DemoValidationException(string message) : Exception(message);
 public sealed class DemoConflictException(string message) : Exception(message);
 
+public sealed class UnifiedUsageMetric
+{
+    public string Provider { get; set; } = "";
+    public string? AccountName { get; set; }
+    public DateTime? Timestamp { get; set; }
+    public long? RequestCount { get; set; }
+    public long? InputTokens { get; set; }
+    public long? OutputTokens { get; set; }
+    public long? TotalTokens { get; set; }
+    public decimal? Cost { get; set; }
+    public string? Currency { get; set; }
+    public long? SuccessfulRequests { get; set; }
+    public long? FailedRequests { get; set; }
+    public string? Model { get; set; }
+    public string? Status { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class IntegrationConfiguration
+{
+    public string ProviderType { get; set; } = "";
+    public string IntegrationName { get; set; } = "";
+    public string? BaseUrl { get; set; }
+    public string? UsageEndpoint { get; set; }
+    public string? ApiKey { get; set; }
+    public string? AuthenticationType { get; set; }
+    public string? CustomHeaderName { get; set; }
+    public string? Environment { get; set; }
+}
+
+public sealed record DemoNormalizeRequest(string Provider,string RawJson);
+public sealed record DemoNormalizeResponse(string RawProvider,IReadOnlyList<UnifiedUsageMetric> Normalized);
+
