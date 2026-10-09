@@ -1,0 +1,14 @@
+.git
+.tools
+artifacts
+backend
+backend-python/.venv
+backend-python/app/__pycache__
+docs
+frontend/.angular
+frontend/dist
+frontend/node_modules
+frontend/out-tsc
+frontend/playwright-report
+**/__pycache__
+**/*.pyc

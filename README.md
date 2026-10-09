@@ -1,18 +1,22 @@
 ﻿# Unified AI Consumption Dashboard
 
-A working Angular + ASP.NET Core enterprise POC for Claude, OpenAI, Microsoft Copilot, ServiceNow, and runtime custom REST configurations.
+A working Angular + Python FastAPI enterprise POC for Claude, OpenAI, Microsoft Copilot, ServiceNow, and runtime custom REST configurations.
 
-**No database. No persistence. No data generator.** The current demo providers return explicit raw JSON fixtures, which pass through a sanitizer, LLM normalizer abstraction, .NET validation/calculation, and then the dashboard APIs.
+**No database. No persistence. No data generator.** The current demo providers return explicit raw JSON fixtures, which pass through Python validation/calculation and then the dashboard APIs.
 
 ## Run locally
 
-Prerequisites: **.NET 8 SDK**, **Node.js 24.15+**, npm. Angular 22 and Angular Material 22 are locked in `frontend/package-lock.json`.
+Prerequisites: **Python 3.12+**, **Node.js 24.15+**, npm. Angular 22 and Angular Material 22 are locked in `frontend/package-lock.json`.
 
 From the repository root, open two terminals:
 
 ```powershell
 # Terminal 1
-dotnet run --project backend/UnifiedAI.Api
+cd backend-python
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 5080
 ```
 
 ```powershell
@@ -24,13 +28,9 @@ npm start
 
 Open **http://localhost:4200**. The frontend proxies `/api` to **http://localhost:5080**. Swagger is at **http://localhost:5080/swagger**.
 
-This workspace also contains ignored, locally downloaded tools. If Node/.NET 10 are not on PATH, use:
+This workspace also contains ignored, locally downloaded tools. If Node is not on PATH, use:
 
 ```powershell
-# Terminal 1, repository root
-$env:DOTNET_CLI_HOME="$PWD\.tools\cli"
-& .\.tools\dotnet\dotnet.exe run --project backend/UnifiedAI.Api
-
 # Terminal 2, repository root
 $env:PATH="$PWD\.tools\node-v24.21.0-win-x64;$env:PATH"
 & .\.tools\node-v24.21.0-win-x64\npm.cmd start --prefix frontend
@@ -78,16 +78,11 @@ All four use the same `IUsageNormalizer` and produce the same `UnifiedUsageMetri
 ```mermaid
 flowchart TD
   UI[Angular lazy-loaded features] --> Services[Typed Angular API services]
-  Services --> API[ASP.NET Core controllers / stable REST contracts]
+  Services --> API[FastAPI routes / stable REST contracts]
   API --> Dashboard[Dashboard API]
   API --> Demo[Demo normalize endpoint]
-  Demo --> Service[IntegrationService]
-  Service --> Resolver[ConnectorResolver]
-  Resolver --> Connectors[Provider connectors / raw JSON]
-  Connectors --> Sanitizer[JsonSanitizer]
-  Sanitizer --> Normalizer[LlmUsageNormalizer]
-  Normalizer --> Validator[UsageValidator]
-  Validator --> Unified[UnifiedUsageMetric]
+  Demo --> Service[Runtime integration service]
+  Service --> Unified[UnifiedUsageMetric]
   Dashboard --> Fixed[Dashboard aggregations]
   API --> Catalog[Provider catalog / configuration schemas]
   API --> Runtime[RuntimeIntegrationService / server memory]
@@ -97,15 +92,10 @@ flowchart TD
 The POC uses one API project with focused folders instead of multiple infrastructure layers.
 
 ```text
-backend/
-  UnifiedAI.sln
-  UnifiedAI.Api/
-    Controllers/        Thin HTTP endpoints
-    Models/             Normalized DTOs and validation errors
-    Data/               Explicit immutable demo observations
-    Services/           Aggregation, schemas, runtime state, normalization
-    Connectors/         Provider connectors and Generic REST connector
-  UnifiedAI.Tests/      Unit and in-process API tests
+backend-python/
+  app/main.py           FastAPI routes, fixtures, validation, runtime state
+  requirements.txt      Python API dependencies
+  Dockerfile            Container entrypoint for port 5080
 frontend/
   src/app/
     core/               Typed HTTP services, filters, models
@@ -219,8 +209,10 @@ Audit supports provider, action, result, user, inclusive from/to dates and pagin
 ## Tests and builds
 
 ```powershell
-dotnet build backend/UnifiedAI.sln
-dotnet test backend/UnifiedAI.Tests
+cd backend-python
+python -m compileall app
+python -c "from fastapi.testclient import TestClient; from app.main import app; c=TestClient(app); assert c.get('/api/health').status_code == 200"
+cd ..
 cd frontend
 npm ci
 npm run build
@@ -231,7 +223,7 @@ npx playwright test
 
 If Edge is unavailable, install Playwright Chromium with `npx playwright install chromium` and remove `channel: 'msedge'` from `playwright.config.ts`.
 
-Stop a running Windows API process before rebuilding its executable to avoid file-lock errors. The API tests use an in-process host and need no running database or provider.
+The API smoke test uses an in-process FastAPI client and needs no running database or provider.
 
 ## Optional containers
 

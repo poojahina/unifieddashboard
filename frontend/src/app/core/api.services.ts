@@ -1,6 +1,6 @@
 ﻿import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn, HttpParams } from '@angular/common/http';
-import { catchError, throwError } from 'rxjs';
+import { catchError, map, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Alert, Audit, ConnectionResult, CostSummary, Filters, Integration, IntegrationRequest, Metadata, Page, Provider, ProviderSummary, Summary, SyncResult, TopConsumers, Trend, Usage } from './models';
 
@@ -11,11 +11,18 @@ export const errorInterceptor:HttpInterceptorFn=(req,next)=>next(req).pipe(catch
 @Injectable({providedIn:'root'})
 export class ApiClient {
   private http=inject(HttpClient);
-  get<T>(path:string,params:object={}) { let query=new HttpParams(); for(const [k,v] of Object.entries(params))if(v!==''&&v!==null&&v!==undefined)query=query.set(k,String(v));return this.http.get<T>(environment.apiUrl+path,{params:query});}
-  post<T>(path:string,body:unknown={}){return this.http.post<T>(environment.apiUrl+path,body);}
-  put<T>(path:string,body:unknown){return this.http.put<T>(environment.apiUrl+path,body);}
-  patch<T>(path:string,body:unknown){return this.http.patch<T>(environment.apiUrl+path,body);}
+  get<T>(path:string,params:object={}) { let query=new HttpParams(); for(const [k,v] of Object.entries(params))if(v!==''&&v!==null&&v!==undefined)query=query.set(k,String(v));return this.http.get<unknown>(environment.apiUrl+path,{params:query}).pipe(map(x=>camelize(x) as T));}
+  post<T>(path:string,body:unknown={}){return this.http.post<unknown>(environment.apiUrl+path,body).pipe(map(x=>camelize(x) as T));}
+  put<T>(path:string,body:unknown){return this.http.put<unknown>(environment.apiUrl+path,body).pipe(map(x=>camelize(x) as T));}
+  patch<T>(path:string,body:unknown){return this.http.patch<unknown>(environment.apiUrl+path,body).pipe(map(x=>camelize(x) as T));}
   delete(path:string){return this.http.delete<void>(environment.apiUrl+path);}
+}
+function camelize(value:unknown):unknown{
+  if(Array.isArray(value))return value.map(camelize);
+  if(value&&typeof value==='object'){
+    return Object.fromEntries(Object.entries(value).map(([key,item])=>[key.charAt(0).toLowerCase()+key.slice(1),camelize(item)]));
+  }
+  return value;
 }
 @Injectable({providedIn:'root'}) export class DashboardService {
   private api=inject(ApiClient);

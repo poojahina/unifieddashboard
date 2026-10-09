@@ -1,14 +1,7 @@
 services:
-  api:
-    build: ./backend/UnifiedAI.Api
+  app:
+    build: .
+    image: unified-ai-dashboard:latest
     ports:
-      - "127.0.0.1:5080:8080"
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-  frontend:
-    build: ./frontend
-    ports:
-      - "127.0.0.1:4200:80"
-    depends_on:
-      - api
+      - "127.0.0.1:8000:8000"
 
